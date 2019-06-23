@@ -7,12 +7,22 @@
   "author": "@bnguyensn",
   "license": "MIT",
   "private": false,
+  "scripts": {
+    "dev": "npx @bnguyensn/bundler dev",
+    "prod": "npx @bnguyensn/bundler prod"
+  },
   "devDependencies": {
-    "@bnguyensn/bundler": "^2.0.1"
+    "@bnguyensn/bundler": "^2.1.0",
+    "prettier": "^1.18.2"
   },
   "dependencies": {
     "jest": "^24.8.0",
+    "paper": "^0.12.2",
     "react": "^16.8.6",
     "react-dom": "^16.8.6"
+  },
+  "@bnguyensn/bundler": {
+    "entryPath": "src/index.js",
+    "htmlWebpackPluginTemplatePath": "src/public/index.html"
   }
 }
