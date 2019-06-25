@@ -182,7 +182,6 @@ export default function App() {
         ref={canvasRef}
         width={window.innerWidth}
         height={window.innerHeight}
-        resize="true"
       >
         An HTML canvas.
       </canvas>
