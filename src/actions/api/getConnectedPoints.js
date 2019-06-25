@@ -7,6 +7,7 @@
 
 import paper from 'paper';
 import limiter from '../../lib/limiter';
+import checkBacktracking from '../../lib/checkBacktracking';
 
 export default async function getConnectedPoints(
   start = new paper.Point({ x: 0, y: 0 }),
@@ -22,7 +23,21 @@ export default async function getConnectedPoints(
   );
   const data = await res.json();
 
-  return data.directions.reduce(
+  const dataNoBacktracking = data.directions.reduce(
+    (acc, cur, i) => {
+      const prevDirection = acc[acc.length - 1].direction;
+      const curDirection = cur.direction;
+
+      if (i > 0 && !checkBacktracking(prevDirection, curDirection)) {
+        acc.push(cur);
+      }
+
+      return acc;
+    },
+    [data.directions[0]]
+  );
+
+  return dataNoBacktracking.reduce(
     (acc, cur) => {
       const length = limiter(cur.distance, 20, 20);
 

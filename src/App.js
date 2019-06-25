@@ -7,6 +7,7 @@ import {
 import Toolbar from './components/toolbar/Toolbar';
 import getCanvasCenter from './actions/draw/getCanvasCenter';
 import getConnectedPoints from './actions/api/getConnectedPoints';
+import drawPathsFromPoints from './actions/draw/drawPathsFromPoints';
 
 // Not used
 const globals = {
@@ -19,6 +20,7 @@ export default function App() {
 
   const canvasRef = React.useRef(null);
   const paperScopeRef = React.useRef(new paper.PaperScope());
+  const pathRefs = [];
   const pathRef = React.useRef(null);
 
   const [coordinates, setCoordinates] = React.useState([]);
@@ -45,6 +47,9 @@ export default function App() {
   const add = async () => {
     const canvas = canvasRef.current;
     const paperScope = paperScopeRef.current;
+    /*const project = paperScope.project;
+    const layer = project.activeLayer;
+    layer.removeChildren();*/
 
     // Get data from NOOP's API
     const centerPoint = new paper.Point(getCanvasCenter(canvas));
@@ -77,6 +82,14 @@ export default function App() {
         if (coordinatesDisp.length !== coordinates.length && path !== null) {
           const i = coordinatesDisp.length;
           const pointToAdd = new paper.Point(coordinates[i]);
+
+          const hitTestResult = path.hitTest(pointToAdd);
+          if (hitTestResult) {
+            console.log('A hit!');
+            console.log(hitTestResult);
+            view.onFrame = null;
+            setIsPlaying(false);
+          }
 
           path.add(pointToAdd);
 
