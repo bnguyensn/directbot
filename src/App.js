@@ -7,7 +7,7 @@ import {
 import Toolbar from './components/toolbar/Toolbar';
 import getCanvasCenter from './actions/draw/getCanvasCenter';
 import getConnectedPoints from './actions/api/getConnectedPoints';
-import drawPathsFromPoints from './actions/draw/drawPathsFromPoints';
+import getColors from './actions/api/getColors';
 
 // Not used
 const globals = {
@@ -20,11 +20,14 @@ export default function App() {
 
   const canvasRef = React.useRef(null);
   const paperScopeRef = React.useRef(new paper.PaperScope());
-  const pathRefs = [];
-  const pathRef = React.useRef(null);
 
-  const [coordinates, setCoordinates] = React.useState([]);
-  const [coordinatesDisp, setCoordinatesDisp] = React.useState([]);
+  const pathMapRef = React.useRef(new Map());
+  const animatingPathMapRef = React.useRef(new Map());
+
+  const [endAnimationOnCollision, setEndAnimationOnCollision] = React.useState(
+    false
+  );
+
   const [isPlaying, setIsPlaying] = React.useState(false);
 
   // Set up Paper.js and the canvas element.
@@ -45,62 +48,119 @@ export default function App() {
   }, []);
 
   const add = async () => {
+    // ********** Base canvas variables ********** //
+
     const canvas = canvasRef.current;
     const paperScope = paperScopeRef.current;
-    /*const project = paperScope.project;
-    const layer = project.activeLayer;
-    layer.removeChildren();*/
-
-    // Get data from NOOP's API
     const centerPoint = new paper.Point(getCanvasCenter(canvas));
-    const noopConnectedPoints = await getConnectedPoints(centerPoint, 100);
 
-    setCoordinates(
-      noopConnectedPoints.map(point => ({ x: point.x, y: point.y }))
-    );
-    setCoordinatesDisp([]);
+    // ********** Get data from NOOP's API ********** //
 
-    // Need to re-active the PaperScope after setState() hook calls.
-    // Why? Don't know yet...
+    const [noopConnectedPoints, noopColors] = await Promise.all([
+      getConnectedPoints(centerPoint, 500),
+      getColors(),
+    ]);
+
+    // ********** Animation data ********** //
+
+    const animationData = {
+      allPoints: noopConnectedPoints,
+      animatedPoints: [],
+    };
+
+    // ********** Creating the actual path ********** //
+
+    // Need to re-activate the PaperScope after setState() hook calls else we
+    // can't create Paper.js items. Don't know why though...
     paperScope.activate();
-    pathRef.current = new paper.Path({
+
+    const p = new paper.Path({
       segments: [],
-      strokeColor: 'black',
+      strokeColor: noopColors[0],
+      strokeWidth: 3,
+      opacity: 0.5,
+    });
+
+    pathMapRef.current.set(p, animationData);
+    animatingPathMapRef.current.set(p, animationData);
+
+    console.log(`Size of pathMap: ${pathMapRef.current.size}`);
+    console.log(
+      `Size of animatingPathMap: ${animatingPathMapRef.current.size}`
+    );
+  };
+
+  const animatePath = (animationData, path) => {
+    const { allPoints, animatedPoints } = animationData;
+
+    const animatedCount = animatedPoints.length;
+
+    if (animatedCount === allPoints.length) {
+      // There are no more points to add! Stop the animation.
+      return false;
+    }
+
+    const nextPoint = animationData.allPoints[animatedCount];
+
+    if (endAnimationOnCollision) {
+      const collisionResult = path.hitTest(nextPoint);
+
+      if (collisionResult) {
+        // Collision test passes! Stop the animation.
+        return false;
+      }
+    }
+
+    // "Grow" the path by 1 Point
+    path.add(nextPoint);
+    animationData.animatedPoints.push(nextPoint);
+
+    return true;
+  };
+
+  const handleEachFrame = e => {
+    if (animatingPathMapRef.current.size === 0) {
+      // There are no more paths to animate. Pause the playing function.
+      pauseAllAnimations();
+      console.log('STOP!');
+    }
+
+    animatingPathMapRef.current.forEach((animationData, path, m) => {
+      const animated = animatePath(animationData, path);
+
+      if (!animated) {
+        // The animation should end. Remove this path from the animation
+        // list.
+        m.delete(path);
+      }
     });
   };
 
-  const togglePlaying = () => {
+  const playAllAnimations = () => {
     const view = paperScopeRef.current.view;
+    view.onFrame = handleEachFrame;
+    setIsPlaying(true);
+  };
 
+  const pauseAllAnimations = () => {
+    const view = paperScopeRef.current.view;
+    view.onFrame = null;
+    setIsPlaying(false);
+  };
+
+  const togglePlaying = () => {
     if (isPlaying) {
-      view.onFrame = null;
-      setIsPlaying(false);
+      pauseAllAnimations();
     } else {
-      view.onFrame = e => {
-        const path = pathRef.current;
-
-        if (coordinatesDisp.length !== coordinates.length && path !== null) {
-          const i = coordinatesDisp.length;
-          const pointToAdd = new paper.Point(coordinates[i]);
-
-          const hitTestResult = path.hitTest(pointToAdd);
-          if (hitTestResult) {
-            console.log('A hit!');
-            console.log(hitTestResult);
-            view.onFrame = null;
-            setIsPlaying(false);
-          }
-
-          path.add(pointToAdd);
-
-          coordinatesDisp.push(coordinates[i]);
-        } else {
-          view.onFrame = null;
-          setIsPlaying(false);
-        }
-      };
-      setIsPlaying(true);
+      playAllAnimations();
     }
+  };
+
+  const clear = () => {
+    const paperScope = paperScopeRef.current;
+    const project = paperScope.project;
+    const layer = project.activeLayer;
+    layer.removeChildren();
   };
 
   const sayInfo = () => {

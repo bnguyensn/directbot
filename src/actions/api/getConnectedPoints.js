@@ -1,14 +1,13 @@
-/**
- * @param startPoint Point - The starting point
- * @param count number - How many connected points to be returned? Default to
- * 100.
- * @returns Object[] - An array of connected points
- * */
-
 import paper from 'paper';
 import limiter from '../../lib/limiter';
 import checkBacktracking from '../../lib/checkBacktracking';
 
+/**
+ * @param start Point - The starting point
+ * @param count number - How many connected points to be returned? Default to
+ * 100.
+ * @returns Object[] - An array of connected points
+ * */
 export default async function getConnectedPoints(
   start = new paper.Point({ x: 0, y: 0 }),
   count = 100

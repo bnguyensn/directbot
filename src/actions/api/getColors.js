@@ -7,6 +7,7 @@ export default async function getColors(count = 1) {
   const res = await fetch(
     `https://api.noopschallenge.com/hexbot?count=${count}`
   );
+  const data = await res.json();
 
-  return res.colors.map(color => color.value);
+  return data.colors.map(color => color.value);
 }
