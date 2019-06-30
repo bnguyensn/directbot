@@ -16,6 +16,7 @@
     "prettier": "^1.18.2"
   },
   "dependencies": {
+    "comlink": "^4.0.1",
     "jest": "^24.8.0",
     "paper": "^0.12.2",
     "react": "^16.8.6",
