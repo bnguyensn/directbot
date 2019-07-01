@@ -11,7 +11,7 @@ body {
 }
 
 canvas {
-  border: 1px solid #212121;
+  border: 1px solid #ff0000;
 }
 
 /* This is a Paper.js thing. If the attribute 'resize' is present, the canvas

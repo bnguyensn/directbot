@@ -11,13 +11,30 @@ import randBetweenInt from './lib/randBetweenInt';
 import getPipeStartPoint from './actions/draw/getPipeStartPoint';
 
 const PIPE_SETTINGS = {
+  // Physical appearance of the pipes
   segmentDistance: 10,
   pipeMinLength: 20,
   pipeMaxLength: 40,
   pipeMinWidth: 1,
   pipeMaxWidth: 10,
   pipeEndPointsCount: 100,
+
+  // Amount of pipes in view before a full reset (clear all pipes from the
+  // screen)
   maxPipesBeforeClear: 75,
+
+  // Maximum amount of directions pre-fetched from the directbot
+  directionsPreFetchCount: 3,
+
+  // Amount of pipes running concurrently. In Windows 3DPipes, only 1 pipe runs
+  // at a time. This will also never be higher than the amount of fetched
+  // directions.
+  concurrentPipeAnimation: 1,
+
+  // When the view is resized, all pipe animations are paused until this
+  // debounce time elapses. This prevents janky animations / canvas behaviours
+  // on resizing.
+  resizeAnimationDebounceTime: 500, // ms
 };
 
 export default function App() {
@@ -32,8 +49,8 @@ export default function App() {
   const pathMapRef = React.useRef(new Map());
   const animatingPathMapRef = React.useRef(new Map());
 
-  // We also need a React ref to store our timer ID
-  const timerIDRef = React.useRef(0);
+  const autoAddTimerID = React.useRef(null);
+  const debounceTimerID = React.useRef(null);
 
   // We could end a path's animation upon collision with another path. This
   // behaviour is turned off by default.
@@ -43,29 +60,33 @@ export default function App() {
 
   // This controls whether animations are being played or not.
   const [isPlaying, setIsPlaying] = React.useState(false);
+  const [isPlayingPreResize, setIsPlayingPreResize] = React.useState(false);
 
-  // Set up Paper.js and the canvas element.
-  // Note: this effect only runs once on component mount and once on component
-  // unmount.
+  // Set up Paper.js and the canvas element. We only need to run this effect
+  // once on component mounting because it doesn't rely on any of our states.
   React.useEffect(() => {
     const canvas = canvasRef.current;
     const paperScope = paperScopeRef.current;
 
     paperScope.setup(canvas);
     paperScope.activate();
-
-    // const resizeCanvasFn = registerResizeCanvas(canvas);
-
-    return () => {
-      // unregisterResizeCanvas(resizeCanvasFn);
-    };
   }, []);
 
+  // The resize event handler depends on our isPlaying (and with it,
+  // isPlayingPreResize) state, thus we need to re-run this effect every time
+  // isPlaying changes. If you don't re-apply the event handler, isPlaying will
+  // be stale (always stays at the default value of false) in our handler
+  // function.
   React.useEffect(() => {
-    timerIDRef.current = window.setInterval(autoAdd, 1000);
+    const view = paperScopeRef.current.view;
+    view.onResize = handleResize;
+  }, [isPlaying, isPlayingPreResize]);
+
+  React.useEffect(() => {
+    autoAddTimerID.current = window.setInterval(autoAdd, 1000);
 
     return () => {
-      window.clearInterval(timerIDRef.current);
+      window.clearInterval(autoAddTimerID.current);
     };
   }, []);
 
@@ -79,10 +100,7 @@ export default function App() {
 
     const startPoint = getPipeStartPoint(view);
     const [noopConnectedPoints, noopColors] = await Promise.all([
-      getConnectedPoints(
-        startPoint,
-        PIPE_SETTINGS
-      ),
+      getConnectedPoints(startPoint, PIPE_SETTINGS),
       getColors(),
     ]);
 
@@ -111,8 +129,6 @@ export default function App() {
 
     pathMapRef.current.set(p, animationData);
     animatingPathMapRef.current.set(p, animationData);
-
-    console.log('Added a new pipe');
   };
 
   const autoAdd = () => {
@@ -172,6 +188,35 @@ export default function App() {
     });
   };
 
+  const debounceTimerCallback = () => {
+    if (isPlayingPreResize && !isPlaying) {
+      playAllAnimations();
+    }
+    debounceTimerID.current = null;
+  };
+
+  const handleResize = () => {
+    if (isPlaying) {
+      setIsPlayingPreResize(true);
+      pauseAllAnimations();
+    } else if (debounceTimerID.current === null) {
+      // If animations are not playing when we resize, and if the debounce timer
+      // is not running, then we are certain that animations are not playing
+      // on resizing.
+      // We need to check the debounce timer running state because the resize
+      // event can fire very rapidly and isPlayingPreResize will be incorrectly
+      // set to false during these rapid fires.
+      setIsPlayingPreResize(false)
+    }
+
+    // Reset the debounce timer
+    window.clearTimeout(debounceTimerID.current);
+    debounceTimerID.current = window.setTimeout(
+      debounceTimerCallback,
+      PIPE_SETTINGS.resizeAnimationDebounceTime
+    );
+  };
+
   const playAllAnimations = () => {
     const view = paperScopeRef.current.view;
     view.onFrame = handleEachFrame;
@@ -218,7 +263,7 @@ export default function App() {
         ref={canvasRef}
         width={window.innerWidth}
         height={window.innerHeight}
-        resize
+        resize="true"
       >
         An HTML canvas.
       </canvas>
