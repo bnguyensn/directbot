@@ -1,4 +1,4 @@
-# 2DPipes
+# 2DPipes (NOOP version)
 
 Old Windows "pipes" screensaver, but 2D.
 
