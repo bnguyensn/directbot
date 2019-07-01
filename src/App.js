@@ -1,9 +1,5 @@
 import React from 'react';
 import paper from 'paper';
-import {
-  registerResizeCanvas,
-  unregisterResizeCanvas,
-} from './components/canvas/resizeCanvas';
 import Toolbar from './components/toolbar/Toolbar';
 import getConnectedPoints from './actions/api/getConnectedPoints';
 import getColors from './actions/api/getColors';
@@ -18,18 +14,23 @@ const PIPE_SETTINGS = {
   pipeMinWidth: 1,
   pipeMaxWidth: 10,
   pipeEndPointsCount: 100,
+  pipeOpacity: 1,
 
   // Amount of pipes in view before a full reset (clear all pipes from the
   // screen)
   maxPipesBeforeClear: 75,
 
-  // Maximum amount of directions pre-fetched from the directbot
-  directionsPreFetchCount: 3,
+  // Maximum amount of pipes (or more precisely, directions data) pre-fetched
+  // from NOOP's Directbot.
+  pipesPreFetchCount: 3,
+
+  // Time between each fetch request
+  pipesFetchFrequency: 1000, // ms
 
   // Amount of pipes running concurrently. In Windows 3DPipes, only 1 pipe runs
   // at a time. This will also never be higher than the amount of fetched
   // directions.
-  concurrentPipeAnimation: 1,
+  maxConcurrentPipeAnimation: 1,
 
   // When the view is resized, all pipe animations are paused until this
   // debounce time elapses. This prevents janky animations / canvas behaviours
@@ -43,11 +44,14 @@ export default function App() {
   const canvasRef = React.useRef(null);
   const paperScopeRef = React.useRef(new paper.PaperScope());
 
-  // Path data is stored in 2x Maps. One contains all available paths, the other
-  // contains only those that are being animated (i.e. it's a subset of the
-  // former).
-  const pathMapRef = React.useRef(new Map());
-  const animatingPathMapRef = React.useRef(new Map());
+  // Pipes have 3 states:
+  // - Not yet animated: these pipes have just been fetched from NOOP's API and
+  // haven't been displayed on the screen.
+  // - Animating: these pipes are being animated on the screen.
+  // - Animated: these pipes have finished their animation.
+  const animatedPipeMapRef = React.useRef(new Map());
+  const notYetAnimatedPipeMapRef = React.useRef(new Map());
+  const animatingPipeMapRef = React.useRef(new Map());
 
   const autoAddTimerID = React.useRef(null);
   const debounceTimerID = React.useRef(null);
@@ -79,18 +83,23 @@ export default function App() {
   // function.
   React.useEffect(() => {
     const view = paperScopeRef.current.view;
-    view.onResize = handleResize;
+    view.onResize = handleViewResize;
   }, [isPlaying, isPlayingPreResize]);
 
   React.useEffect(() => {
-    autoAddTimerID.current = window.setInterval(autoAdd, 1000);
+    autoAddTimerID.current = window.setInterval(
+      fetchPipe,
+      PIPE_SETTINGS.pipesFetchFrequency
+    );
 
     return () => {
       window.clearInterval(autoAddTimerID.current);
     };
   }, []);
 
-  const add = async () => {
+  // ********** MAIN LOGIC ********** //
+
+  const fetchAPipe = async () => {
     // ********** Base canvas variables ********** //
 
     const paperScope = paperScopeRef.current;
@@ -124,18 +133,28 @@ export default function App() {
         PIPE_SETTINGS.pipeMinWidth,
         PIPE_SETTINGS.pipeMaxWidth
       ),
-      opacity: 1,
+      opacity: PIPE_SETTINGS.pipeOpacity,
     });
 
-    pathMapRef.current.set(p, animationData);
-    animatingPathMapRef.current.set(p, animationData);
+    notYetAnimatedPipeMapRef.current.set(p, animationData);
+    // animatingPipeMapRef.current.set(p, animationData);
   };
 
-  const autoAdd = () => {
-    if (pathMapRef.current.size > PIPE_SETTINGS.maxPipesBeforeClear) {
+  const fetchPipe = async () => {
+    if (animatedPipeMapRef.current.size > PIPE_SETTINGS.maxPipesBeforeClear) {
       clear();
-    } else if (animatingPathMapRef.current.size <= 3) {
-      add();
+    } else if (
+      notYetAnimatedPipeMapRef.current.size < PIPE_SETTINGS.pipesPreFetchCount
+    ) {
+      const res = await fetchAPipe();
+
+      if (res instanceof Error) {
+        console.log(`Error fetching pipe: ${Error.message}`);
+      }
+
+      console.log(`size of Animated basket: ${animatedPipeMapRef.current.size}`);
+      console.log(`size of NotYetAnimated basket: ${notYetAnimatedPipeMapRef.current.size}`);
+      console.log(`size of Animating basket: ${animatingPipeMapRef.current.size}`);
     }
   };
 
@@ -143,7 +162,7 @@ export default function App() {
    * The frame handler relies on this function to return false to remove a path
    * from the animation basket.
    * */
-  const animatePath = (animationData, path) => {
+  const animatePipe = (animationData, path) => {
     const { allPoints, animatedPoints } = animationData;
 
     const animatedCount = animatedPoints.length;
@@ -172,30 +191,55 @@ export default function App() {
   };
 
   const handleEachFrame = e => {
-    if (animatingPathMapRef.current.size === 0) {
-      // There are no more paths to animate. Pause the playing function.
-      // pauseAllAnimations();
-      // console.log('STOP!');
+    // Try to add pipes into the "animating" map, up to the applicable limit
+    if (
+      animatingPipeMapRef.current.size <
+        PIPE_SETTINGS.maxConcurrentPipeAnimation &&
+      notYetAnimatedPipeMapRef.current.size > 0
+    ) {
+      const notYetAnimatedPipeMapKeysIter = notYetAnimatedPipeMapRef.current.keys();
+
+      let iterRes = notYetAnimatedPipeMapKeysIter.next();
+      while (
+        !iterRes.done &&
+        animatingPipeMapRef.current.size <
+          PIPE_SETTINGS.maxConcurrentPipeAnimation
+      ) {
+        // Move the next in-queue-for-animation pipe from the "not yet animated"
+        // to the "animating" map
+        const nextPipeKey = iterRes.value;
+        animatingPipeMapRef.current.set(
+          nextPipeKey,
+          notYetAnimatedPipeMapRef.current.get(nextPipeKey)
+        );
+        notYetAnimatedPipeMapRef.current.delete(nextPipeKey);
+
+        iterRes = notYetAnimatedPipeMapKeysIter.next();
+      }
     }
 
-    animatingPathMapRef.current.forEach((animationData, path, m) => {
-      const animated = animatePath(animationData, path);
+    // Animate pipes, if there are any
+    if (animatingPipeMapRef.current.size > 0) {
+      animatingPipeMapRef.current.forEach((animationData, path, m) => {
+        const animated = animatePipe(animationData, path);
 
-      if (!animated) {
-        // Remove this path from the animation basket.
-        m.delete(path);
-      }
-    });
+        if (!animated) {
+          // Move this pipe from the "animating" to the "animated" map
+          animatedPipeMapRef.current.set(path, animationData);
+          m.delete(path);
+        }
+      });
+    }
   };
 
-  const debounceTimerCallback = () => {
+  const viewResizeDebounceTimerCallback = () => {
     if (isPlayingPreResize && !isPlaying) {
       playAllAnimations();
     }
     debounceTimerID.current = null;
   };
 
-  const handleResize = () => {
+  const handleViewResize = () => {
     if (isPlaying) {
       setIsPlayingPreResize(true);
       pauseAllAnimations();
@@ -206,13 +250,13 @@ export default function App() {
       // We need to check the debounce timer running state because the resize
       // event can fire very rapidly and isPlayingPreResize will be incorrectly
       // set to false during these rapid fires.
-      setIsPlayingPreResize(false)
+      setIsPlayingPreResize(false);
     }
 
     // Reset the debounce timer
     window.clearTimeout(debounceTimerID.current);
     debounceTimerID.current = window.setTimeout(
-      debounceTimerCallback,
+      viewResizeDebounceTimerCallback,
       PIPE_SETTINGS.resizeAnimationDebounceTime
     );
   };
@@ -237,8 +281,8 @@ export default function App() {
     layer.removeChildren();
 
     // Clear the path Maps
-    pathMapRef.current.clear();
-    animatingPathMapRef.current.clear();
+    animatedPipeMapRef.current.clear();
+    animatingPipeMapRef.current.clear();
   };
 
   // ********** User actions ********** //
