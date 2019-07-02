@@ -24,3 +24,4 @@ Animations can be played / paused.
 
 - Move NOOP API calls and Paper.js path initializations out to a web worker
 - Add pipe configuration functionality
+- Improve view resize experience

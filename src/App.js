@@ -101,7 +101,7 @@ export default function App() {
     pauseText.name = 'pauseText';
     pauseText.content = 'PAUSED';
     pauseText.fillColor = new paper.Color('#212121');
-    pauseText.fontSize = view.bounds.height / 4;
+    pauseText.fontSize = Math.min(view.bounds.height, view.bounds.width) / 4;
     pauseText.position = view.center;
 
     pauseScreenLayer.visible = false;
@@ -278,7 +278,7 @@ export default function App() {
     const backdrop = project.layers[1].children['backdrop'];
     const pauseText = project.layers[1].children['pauseText'];
     backdrop.bounds = view.bounds;
-    pauseText.fontSize = view.bounds.height / 4;
+    pauseText.fontSize = Math.min(view.bounds.height, view.bounds.width) / 4;
     pauseText.position = view.center;
 
     debounceTimerID.current = null;

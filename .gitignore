@@ -60,3 +60,5 @@ yarn-debug.log*
 yarn-error.log*
 
 # ########## PROJECT ########## #
+
+webpackRecords.json
