@@ -11,7 +11,7 @@ Animations can be played / paused.
 - [Directbot](https://noopschallenge.com/challenges/directbot) (to draw the pipes)
 - [Hexbot](https://noopschallenge.com/challenges/hexbot) (to color the pipes)
 
-### External Packages
+### App Packages
 
 - [React](https://reactjs.org)
 - [Paper.js](https://paperjs.org)
@@ -19,3 +19,7 @@ Animations can be played / paused.
 ### Build Tool
 
 - [webpack](https://webpack.js.org)
+
+### To-Do
+
+- Move NOOP API calls and Paper.js path initializations out to a web worker.
