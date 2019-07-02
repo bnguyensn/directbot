@@ -24,6 +24,8 @@
   },
   "@bnguyensn/bundler": {
     "entryPath": "src/index.js",
-    "htmlWebpackPluginTemplatePath": "src/public/index.html"
+    "htmlWebpackPluginTemplatePath": "src/public/index.html",
+    "htmlWebpackPluginFaviconPath": "src/public/favicon/favicon.ico",
+    "pwaManifestTemplatePath": "src/public/manifest.js"
   }
 }
