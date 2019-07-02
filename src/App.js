@@ -39,8 +39,10 @@ const PIPE_SETTINGS = {
 };
 
 export default function App() {
-  // 2x React refs are used to store references to the HTML canvas element and
-  // the Paper.js scope object.
+  // ********** SETUP ********** //
+
+  // React refs are used to store references to the HTML canvas element and the
+  // Paper.js scope object.
   const canvasRef = React.useRef(null);
   const paperScopeRef = React.useRef(new paper.PaperScope());
 
@@ -74,16 +76,38 @@ export default function App() {
 
     paperScope.setup(canvas);
     paperScope.activate();
+
+    const project = paperScope.project;
+    const view = project.view;
+    const pipesLayer = new paper.Layer();
+    const pauseScreenLayer = new paper.Layer();
+    project.addLayer(pipesLayer);
+    project.addLayer(pauseScreenLayer);
+
+    pauseScreenLayer.activate();
+
+    // Create a backdrop rectangle that spans the whole view
+    const backdrop = new paper.Path.Rectangle(view.bounds);
+    backdrop.name = 'backdrop';
+    backdrop.fillColor = new paper.Color('#ffffff');
+    backdrop.opacity = 0.6;
+
+    // Create the big "PAUSE" text
+    const pauseText = new paper.PointText(view.center);
+    pauseText.name = 'pauseText';
+    pauseText.content = 'PAUSED';
+    pauseText.fillColor = new paper.Color('#212121');
+    pauseText.fontSize = view.bounds.height / 4;
+    pauseText.position = view.center;
+
+    pauseScreenLayer.visible = false;
+    pipesLayer.activate();
   }, []);
 
-  // The resize event handler depends on our isPlaying (and with it,
-  // isPlayingPreResize) state, thus we need to re-run this effect every time
-  // isPlaying changes. If you don't re-apply the event handler, isPlaying will
-  // be stale (always stays at the default value of false) in our handler
-  // function.
   React.useEffect(() => {
     const view = paperScopeRef.current.view;
     view.onResize = handleViewResize;
+    view.onClick = handleViewClick;
   }, [isPlaying, isPlayingPreResize]);
 
   React.useEffect(() => {
@@ -151,10 +175,6 @@ export default function App() {
       if (res instanceof Error) {
         console.log(`Error fetching pipe: ${Error.message}`);
       }
-
-      console.log(`size of Animated basket: ${animatedPipeMapRef.current.size}`);
-      console.log(`size of NotYetAnimated basket: ${notYetAnimatedPipeMapRef.current.size}`);
-      console.log(`size of Animating basket: ${animatingPipeMapRef.current.size}`);
     }
   };
 
@@ -233,9 +253,16 @@ export default function App() {
   };
 
   const viewResizeDebounceTimerCallback = () => {
-    if (isPlayingPreResize && !isPlaying) {
-      playAllAnimations();
-    }
+    const project = paperScopeRef.current.project;
+    const view = project.view;
+
+    // Resize the pause screen items
+    const backdrop = project.layers[1].children['backdrop'];
+    const pauseText = project.layers[1].children['pauseText'];
+    backdrop.bounds = view.bounds;
+    pauseText.fontSize = view.bounds.height / 4;
+    pauseText.position = view.center;
+
     debounceTimerID.current = null;
   };
 
@@ -261,14 +288,32 @@ export default function App() {
     );
   };
 
+  const handleViewClick = e => {
+    togglePlaying();
+  };
+
+  // ********** USER ACTIONS ********** //
+
   const playAllAnimations = () => {
-    const view = paperScopeRef.current.view;
+    const project = paperScopeRef.current.project;
+    const view = project.view;
+
+    // Show the pause screen
+    project.layers[1].visible = false;
+
+    // Play animations
     view.onFrame = handleEachFrame;
     setIsPlaying(true);
   };
 
   const pauseAllAnimations = () => {
-    const view = paperScopeRef.current.view;
+    const project = paperScopeRef.current.project;
+    const view = project.view;
+
+    // Show the pause screen
+    project.layers[1].visible = true;
+
+    // Pause animations
     view.onFrame = null;
     setIsPlaying(false);
   };
@@ -285,8 +330,6 @@ export default function App() {
     animatingPipeMapRef.current.clear();
   };
 
-  // ********** User actions ********** //
-
   const togglePlaying = () => {
     if (isPlaying) {
       pauseAllAnimations();
@@ -295,11 +338,7 @@ export default function App() {
     }
   };
 
-  const allActions = {
-    togglePlaying,
-  };
-
-  // ********** Render ********** //
+  // ********** RENDER ********** //
 
   return (
     <div className="app">
@@ -311,7 +350,6 @@ export default function App() {
       >
         An HTML canvas.
       </canvas>
-      <Toolbar allActions={allActions} isPlaying={isPlaying} />
     </div>
   );
 }

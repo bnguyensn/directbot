@@ -22,4 +22,4 @@ Animations can be played / paused.
 
 ### To-Do
 
-- Move NOOP API calls and Paper.js path initializations out to a web worker.
+- Move NOOP API calls and Paper.js path initializations out to a web worker
