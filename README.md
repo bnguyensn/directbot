@@ -8,7 +8,7 @@ How the pipes are generated can be modified using a central settings.
 
 Animations can be played / paused.
 
-The NOOP [Directbot](https://noopschallenge.com/challenges/directbot) and [Hexbot](https://noopschallenge.com/challenges/hexbot) are pre-queried every 0.5s to obtain future pipe data unless we have data for 3 pipes that haven't yet been used (animated).
+The NOOP [Directbot](https://noopschallenge.com/challenges/directbot) and [Hexbot](https://noopschallenge.com/challenges/hexbot) are pre-queried every 0.5s to obtain future pipe data up to a maximum of 3 pre-fetched pipes.
 
 ### NOOP Usage
 
