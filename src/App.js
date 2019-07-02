@@ -1,6 +1,5 @@
 import React from 'react';
 import paper from 'paper';
-import Toolbar from './components/toolbar/Toolbar';
 import getConnectedPoints from './actions/api/getConnectedPoints';
 import getColors from './actions/api/getColors';
 import randBetweenInt from './lib/randBetweenInt';
@@ -107,6 +106,8 @@ export default function App() {
 
     pauseScreenLayer.visible = false;
     pipesLayer.activate();
+
+    playAllAnimations();
   }, []);
 
   React.useEffect(() => {

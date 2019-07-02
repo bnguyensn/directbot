@@ -1,6 +1,6 @@
 {
   "name": "@bnguyensn/directbot",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "A fork of GitHub's directbot",
   "main": "index.js",
   "repository": "https://github.com/bnguyensn/directbot.git",
@@ -16,8 +16,6 @@
     "prettier": "^1.18.2"
   },
   "dependencies": {
-    "comlink": "^4.0.1",
-    "jest": "^24.8.0",
     "paper": "^0.12.2",
     "react": "^16.8.6",
     "react-dom": "^16.8.6"
