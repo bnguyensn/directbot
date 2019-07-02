@@ -18,14 +18,14 @@ const PIPE_SETTINGS = {
 
   // Amount of pipes in view before a full reset (clear all pipes from the
   // screen)
-  maxPipesBeforeClear: 75,
+  maxPipesBeforeClear: 50,
 
   // Maximum amount of pipes (or more precisely, directions data) pre-fetched
   // from NOOP's Directbot.
   pipesPreFetchCount: 3,
 
   // Time between each fetch request
-  pipesFetchFrequency: 1000, // ms
+  pipesFetchFrequency: 500, // ms
 
   // Amount of pipes running concurrently. In Windows 3DPipes, only 1 pipe runs
   // at a time. This will also never be higher than the amount of fetched
@@ -58,11 +58,16 @@ export default function App() {
   const autoAddTimerID = React.useRef(null);
   const debounceTimerID = React.useRef(null);
 
-  // We could end a path's animation upon collision with another path. This
-  // behaviour is turned off by default.
-  const [endAnimationOnCollision, setEndAnimationOnCollision] = React.useState(
-    false
-  );
+  // We could end a path's animation upon collision with the view bounds or
+  // another path (including itself).
+  const [
+    endAnimationOnOutOfBounds,
+    setEndAnimationOnOutOfBounds,
+  ] = React.useState(true);
+  const [
+    endPipeGrowthOnCollision,
+    setEndPipeGrowthOnCollision,
+  ] = React.useState(false);
 
   // This controls whether animations are being played or not.
   const [isPlaying, setIsPlaying] = React.useState(false);
@@ -194,11 +199,23 @@ export default function App() {
 
     const nextPoint = animationData.allPoints[animatedCount];
 
-    if (endAnimationOnCollision) {
-      const collisionResult = path.hitTest(nextPoint);
+    if (endAnimationOnOutOfBounds) {
+      const project = paperScopeRef.current.project;
+      const view = project.view;
 
+      if (
+        nextPoint.x <= 0 ||
+        nextPoint.x >= view.bounds.width ||
+        nextPoint.y <= 0 ||
+        nextPoint.y >= view.bounds.height
+      ) {
+        return false;
+      }
+    }
+
+    if (endPipeGrowthOnCollision) {
+      const collisionResult = path.hitTest(nextPoint);
       if (collisionResult) {
-        // Collision test passes.
         return false;
       }
     }
@@ -298,7 +315,7 @@ export default function App() {
     const project = paperScopeRef.current.project;
     const view = project.view;
 
-    // Show the pause screen
+    // Hide the pause screen
     project.layers[1].visible = false;
 
     // Play animations
