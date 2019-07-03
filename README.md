@@ -10,6 +10,8 @@ Animations can be played / paused.
 
 The NOOP [Directbot](https://noopschallenge.com/challenges/directbot) and [Hexbot](https://noopschallenge.com/challenges/hexbot) are pre-queried every 0.5s to obtain future pipe data up to a maximum of 3 pre-fetched pipes.
 
+The screen is cleared after 50 pipes.
+
 ### NOOP Usage
 
 - [Directbot](https://noopschallenge.com/challenges/directbot) (to draw the pipes)
@@ -29,3 +31,4 @@ The NOOP [Directbot](https://noopschallenge.com/challenges/directbot) and [Hexbo
 - Move NOOP API calls and Paper.js path initializations out to a web worker
 - Add pipe configuration functionality
 - Improve view resize experience
+- Clear the screen on fewer / more pipes depending on screen size
